@@ -11,7 +11,7 @@ import (
 
 const (
 	jsonFile  = "test.json"
-	testQuery = "p..div.1.href"
+	testQuery = "p..div.*.desc..*"
 )
 
 func must(err error) {
@@ -33,7 +33,6 @@ func NewElement(value interface{}, parent *Element) *Element {
 }
 
 func (e *Element) Query(parts []string) []*Element {
-	// TODO: Implement `*` wildcard specifier support.
 	if len(parts) == 0 {
 		return []*Element{e}
 	}
@@ -47,17 +46,32 @@ func (e *Element) Query(parts []string) []*Element {
 
 	switch t := e.Value.(type) {
 	case map[string]interface{}:
-		if child, exists := t[specifier]; exists {
+		if specifier == "*" {
+			elems := []*Element{}
+
+			for _, v := range t {
+				elems = append(elems, NewElement(v, e).Query(subquery)...)
+			}
+
+			return elems
+		} else if child, exists := t[specifier]; exists {
 			return NewElement(child, e).Query(subquery)
 		}
 
 	case []interface{}:
-		index, err := strconv.Atoi(specifier)
-		if err != nil || index < 0 || index >= len(t) {
+		if specifier == "*" {
+			elems := []*Element{}
+
+			for _, v := range t {
+				elems = append(elems, NewElement(v, e).Query(subquery)...)
+			}
+
+			return elems
+		} else if index, err := strconv.Atoi(specifier); err == nil && index >= 0 || index < len(t) {
+			return NewElement(t[index], e).Query(subquery)
+		} else {
 			log.Fatalln("Invalid index:", specifier)
 		}
-
-		return NewElement(t[index], e).Query(subquery)
 
 	default:
 		log.Fatalln("Unexpected JSON type:", t)
@@ -79,6 +93,6 @@ func main() {
 	queryParts := strings.Split(testQuery, ".")
 
 	for i, v := range rootElem.Query(queryParts) {
-		fmt.Printf("%d: %#v\n", i, v)
+		fmt.Printf("%d: %#v\n", i, v.Value)
 	}
 }
