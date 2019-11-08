@@ -80,6 +80,33 @@ func (e *Element) Query(parts []string) []*Element {
 	return []*Element{}
 }
 
+func ParseQuery(query string) []string {
+	queryRunes := []rune(query)
+	parts := []string{}
+
+	specifierBuilder := strings.Builder{}
+	escape := false
+
+	for i := 0; i < len(queryRunes); i++ {
+		r := queryRunes[i]
+
+		if escape {
+			specifierBuilder.WriteRune(r)
+			escape = false
+		} else if r == '\\' {
+			escape = true
+		} else if r == '.' {
+			parts = append(parts, specifierBuilder.String())
+			specifierBuilder.Reset()
+		} else {
+			specifierBuilder.WriteRune(r)
+		}
+	}
+
+	parts = append(parts, specifierBuilder.String())
+	return parts
+}
+
 func main() {
 	f, err := os.Open(jsonFile)
 	must(err)
@@ -90,7 +117,9 @@ func main() {
 	must(err)
 
 	rootElem := NewElement(root, nil)
-	queryParts := strings.Split(testQuery, ".")
+	queryParts := ParseQuery(testQuery)
+
+	fmt.Printf("%#v\n", queryParts)
 
 	for i, v := range rootElem.Query(queryParts) {
 		fmt.Printf("%d: %#v\n", i, v.Value)
