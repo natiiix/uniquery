@@ -11,7 +11,7 @@ import (
 
 const (
 	jsonFile  = "test.json"
-	testQuery = "p..div.*.desc..*"
+	testQuery = "p..div.*.title=ZXCV..*"
 )
 
 func must(err error) {
@@ -32,78 +32,131 @@ func NewElement(value interface{}, parent *Element) *Element {
 	}
 }
 
-func (e *Element) Query(parts []string) []*Element {
+func (e *Element) Query(parts []*QueryPart) []*Element {
 	if len(parts) == 0 {
 		return []*Element{e}
 	}
 
-	specifier := parts[0]
+	part := parts[0]
 	subquery := parts[1:]
 
-	if specifier == "" {
-		return e.Parent.Query(subquery)
-	}
+	if part.Specifier != nil {
+		spec := *part.Specifier
 
-	switch t := e.Value.(type) {
-	case map[string]interface{}:
-		if specifier == "*" {
-			elems := []*Element{}
-
-			for _, v := range t {
-				elems = append(elems, NewElement(v, e).Query(subquery)...)
-			}
-
-			return elems
-		} else if child, exists := t[specifier]; exists {
-			return NewElement(child, e).Query(subquery)
+		if spec == "" {
+			return e.Parent.Query(subquery)
 		}
 
-	case []interface{}:
-		if specifier == "*" {
-			elems := []*Element{}
+		switch t := e.Value.(type) {
+		case map[string]interface{}:
+			if spec == "*" {
+				elems := []*Element{}
 
-			for _, v := range t {
-				elems = append(elems, NewElement(v, e).Query(subquery)...)
+				for _, v := range t {
+					elems = append(elems, NewElement(v, e).Query(subquery)...)
+				}
+
+				return elems
+			} else if child, exists := t[spec]; exists {
+				return NewElement(child, e).Query(subquery)
 			}
 
-			return elems
-		} else if index, err := strconv.Atoi(specifier); err == nil && index >= 0 || index < len(t) {
-			return NewElement(t[index], e).Query(subquery)
-		} else {
-			log.Fatalln("Invalid index:", specifier)
-		}
+		case []interface{}:
+			if spec == "*" {
+				elems := []*Element{}
 
-	default:
-		log.Fatalln("Unexpected JSON type:", t)
+				for _, v := range t {
+					elems = append(elems, NewElement(v, e).Query(subquery)...)
+				}
+
+				return elems
+			} else if index, err := strconv.Atoi(spec); err == nil && index >= 0 || index < len(t) {
+				return NewElement(t[index], e).Query(subquery)
+			} else {
+				log.Fatalln("Invalid index:", spec)
+			}
+
+		default:
+			log.Fatalln("Unexpected JSON type:", t)
+		}
 	}
 
 	return []*Element{}
 }
 
-func ParseQuery(query string) []string {
-	queryRunes := []rune(query)
-	parts := []string{}
+type QueryPart struct {
+	Specifier *string
+	Equality  *string
+	Regex     *string
+}
 
-	specifierBuilder := strings.Builder{}
+func StringOrNil(strPtr *string) string {
+	if strPtr == nil {
+		return fmt.Sprint(strPtr)
+	}
+
+	return *strPtr
+}
+
+func (qp *QueryPart) String() string {
+	return fmt.Sprintf("%s=%s~%s",
+		StringOrNil(qp.Specifier),
+		StringOrNil(qp.Equality),
+		StringOrNil(qp.Regex))
+}
+
+func NewQueryPart(specifier, equality *string) *QueryPart {
+	return &QueryPart{
+		Specifier: specifier,
+		Equality:  equality,
+		Regex:     nil,
+	}
+}
+
+func ParseQuery(query string) []*QueryPart {
+	queryRunes := []rune(query)
+	parts := []*QueryPart{}
+
+	sb := strings.Builder{}
 	escape := false
+
+	var specifier *string = nil
+	var equality *string = nil
+
+	equalityPresent := false
 
 	for i := 0; i < len(queryRunes); i++ {
 		r := queryRunes[i]
 
 		if escape {
-			specifierBuilder.WriteRune(r)
+			sb.WriteRune(r)
 			escape = false
 		} else if r == '\\' {
 			escape = true
 		} else if r == '.' {
-			parts = append(parts, specifierBuilder.String())
-			specifierBuilder.Reset()
+			str := sb.String()
+			sb.Reset()
+
+			if equalityPresent {
+				equality = &str
+				equalityPresent = false
+			} else {
+				specifier = &str
+			}
+
+			parts = append(parts, NewQueryPart(specifier, equality))
+		} else if r == '=' {
+			equalityPresent = true
+			str := sb.String()
+			sb.Reset()
+			specifier = &str
+
+			// TODO: Make sure it wasn't present before
 		} else {
-			specifierBuilder.WriteRune(r)
+			sb.WriteRune(r)
 		}
 	}
 
-	parts = append(parts, specifierBuilder.String())
 	return parts
 }
 
@@ -119,7 +172,7 @@ func main() {
 	rootElem := NewElement(root, nil)
 	queryParts := ParseQuery(testQuery)
 
-	fmt.Printf("%#v\n", queryParts)
+	fmt.Printf("%+q\n", queryParts)
 
 	for i, v := range rootElem.Query(queryParts) {
 		fmt.Printf("%d: %#v\n", i, v.Value)
