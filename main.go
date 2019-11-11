@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 const (
 	jsonFile  = "test.json"
-	testQuery = `**.href="Second"\ item..title`
+	testQuery = `**.href~".* item"..title`
 )
 
 func must(err error) {
@@ -91,6 +92,18 @@ func (f EqualityFilter) IsMatch(value interface{}) bool {
 	return false
 }
 
+type RegexFilter struct {
+	Regex *regexp.Regexp
+}
+
+func (f RegexFilter) IsMatch(value interface{}) bool {
+	if valueStr, ok := value.(string); ok {
+		return f.Regex.MatchString(valueStr)
+	}
+
+	return false
+}
+
 type Filter interface {
 	IsMatch(value interface{}) bool
 }
@@ -145,10 +158,12 @@ const (
 	quoteRune     = '"'
 	specifierRune = '.'
 	equalityRune  = '='
+	regexRune     = '~'
 )
 
 const (
 	filterEquality = iota
+	filterRegex
 )
 
 func ParseSinglePart(query []rune) (string, int) {
@@ -168,7 +183,7 @@ func ParseSinglePart(query []rune) (string, int) {
 			}
 		} else {
 			switch r {
-			case specifierRune, equalityRune:
+			case specifierRune, equalityRune, regexRune:
 				return sb.String(), i
 
 			case escapeRune:
@@ -206,6 +221,15 @@ func ParseQuery(query string) []QueryPart {
 			switch queryRunes[i] {
 			case equalityRune:
 				filters = append(filters, EqualityFilter{Value: filterValue})
+
+			case regexRune:
+				regex, err := regexp.Compile(filterValue)
+
+				if err != nil {
+					log.Fatalf("Unable to compile regular expression \"%s\" - %v\n", filterValue, err)
+				}
+
+				filters = append(filters, RegexFilter{Regex: regex})
 
 			default:
 				log.Fatalln("Unexpected meta rune:", queryRunes[i])
