@@ -11,7 +11,7 @@ import (
 
 const (
 	jsonFile  = "test.json"
-	testQuery = `p..div.*.title="ZXCV"..`
+	testQuery = `**.href="Second"\ item..title`
 )
 
 func must(err error) {
@@ -23,6 +23,39 @@ func must(err error) {
 type Element struct {
 	Value  interface{}
 	Parent *Element
+}
+
+func (e Element) GetChildren() []Element {
+	switch t := e.Value.(type) {
+	case map[string]interface{}:
+		children := []Element{}
+		for _, v := range t {
+			children = append(children, NewElement(v, &e))
+		}
+		return children
+
+	case []interface{}:
+		children := []Element{}
+		for _, v := range t {
+			children = append(children, NewElement(v, &e))
+		}
+		return children
+
+	default:
+		return []Element{}
+	}
+}
+
+func (e Element) GetChildrenRecursive() []Element {
+	// NOTE: Includes the element itself
+
+	children := []Element{e}
+
+	for _, c := range e.GetChildren() {
+		children = append(children, c.GetChildrenRecursive()...)
+	}
+
+	return children
 }
 
 func (e Element) MatchesFilters(filters []Filter) bool {
@@ -75,32 +108,21 @@ func (e Element) Query(parts []QueryPart) []Element {
 
 	if spec == "" {
 		selected = []Element{*e.Parent}
+	} else if spec == "*" {
+		selected = e.GetChildren()
+	} else if spec == "**" {
+		selected = e.GetChildrenRecursive()
 	} else {
 		switch t := e.Value.(type) {
 		case map[string]interface{}:
-			if spec == "*" {
-				selected = []Element{}
-				for _, v := range t {
-					selected = append(selected, NewElement(v, &e))
-				}
-			} else if child, exists := t[spec]; exists {
+			if child, exists := t[spec]; exists {
 				selected = []Element{NewElement(child, &e)}
 			}
 
 		case []interface{}:
-			if spec == "*" {
-				selected = []Element{}
-				for _, v := range t {
-					selected = append(selected, NewElement(v, &e))
-				}
-			} else if index, err := strconv.Atoi(spec); err == nil && index >= 0 || index < len(t) {
+			if index, err := strconv.Atoi(spec); err == nil && (index >= 0 || index < len(t)) {
 				selected = []Element{NewElement(t[index], &e)}
-			} else {
-				log.Fatalln("Invalid index:", spec)
 			}
-
-		default:
-			log.Fatalln("Unexpected JSON type:", t)
 		}
 	}
 
