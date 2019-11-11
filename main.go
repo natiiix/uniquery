@@ -6,11 +6,12 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 const (
 	jsonFile  = "test.json"
-	testQuery = "p..div.*.title=ZXCV..*"
+	testQuery = `p..div.*.title="ZXCV"..`
 )
 
 func must(err error) {
@@ -22,6 +23,16 @@ func must(err error) {
 type Element struct {
 	Value  interface{}
 	Parent *Element
+}
+
+func (e Element) MatchesFilters(filters []Filter) bool {
+	for _, f := range filters {
+		if !f.IsMatch(e.Value) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func NewElement(value interface{}, parent *Element) Element {
@@ -51,18 +62,6 @@ type Filter interface {
 	IsMatch(value interface{}) bool
 }
 
-func FilterMatches(f Filter, values []interface{}) []interface{} {
-	filtered := []interface{}{}
-
-	for _, val := range values {
-		if f.IsMatch(val) {
-			filtered = append(filtered, val)
-		}
-	}
-
-	return filtered
-}
-
 func (e Element) Query(parts []QueryPart) []Element {
 	if len(parts) == 0 {
 		return []Element{e}
@@ -71,46 +70,47 @@ func (e Element) Query(parts []QueryPart) []Element {
 	part := parts[0]
 	subquery := parts[1:]
 
+	selected := []Element{}
 	spec := part.Specifier
 
 	if spec == "" {
-		return e.Parent.Query(subquery)
-	}
-
-	switch t := e.Value.(type) {
-	case map[string]interface{}:
-		if spec == "*" {
-			elems := []Element{}
-
-			for _, v := range t {
-				elems = append(elems, NewElement(v, &e).Query(subquery)...)
+		selected = []Element{*e.Parent}
+	} else {
+		switch t := e.Value.(type) {
+		case map[string]interface{}:
+			if spec == "*" {
+				selected = []Element{}
+				for _, v := range t {
+					selected = append(selected, NewElement(v, &e))
+				}
+			} else if child, exists := t[spec]; exists {
+				selected = []Element{NewElement(child, &e)}
 			}
 
-			return elems
-		} else if child, exists := t[spec]; exists {
-			return NewElement(child, &e).Query(subquery)
-		}
-
-	case []interface{}:
-		if spec == "*" {
-			elems := []Element{}
-
-			for _, v := range t {
-				elems = append(elems, NewElement(v, &e).Query(subquery)...)
+		case []interface{}:
+			if spec == "*" {
+				selected = []Element{}
+				for _, v := range t {
+					selected = append(selected, NewElement(v, &e))
+				}
+			} else if index, err := strconv.Atoi(spec); err == nil && index >= 0 || index < len(t) {
+				selected = []Element{NewElement(t[index], &e)}
+			} else {
+				log.Fatalln("Invalid index:", spec)
 			}
 
-			return elems
-		} else if index, err := strconv.Atoi(spec); err == nil && index >= 0 || index < len(t) {
-			return NewElement(t[index], &e).Query(subquery)
-		} else {
-			log.Fatalln("Invalid index:", spec)
+		default:
+			log.Fatalln("Unexpected JSON type:", t)
 		}
-
-	default:
-		log.Fatalln("Unexpected JSON type:", t)
 	}
 
-	return []Element{}
+	results := []Element{}
+	for _, e := range selected {
+		if e.MatchesFilters(part.Filters) {
+			results = append(results, e.Query(subquery)...)
+		}
+	}
+	return results
 }
 
 type QueryPart struct {
@@ -119,6 +119,8 @@ type QueryPart struct {
 }
 
 const (
+	escapeRune    = '\\'
+	quoteRune     = '"'
 	specifierRune = '.'
 	equalityRune  = '='
 )
@@ -127,28 +129,43 @@ const (
 	filterEquality = iota
 )
 
-func CreateFilter(valueRunes []rune, filterType int) Filter {
-	valueString := string(valueRunes)
-
-	switch filterType {
-	case filterEquality:
-		return EqualityFilter{Value: valueString}
-
-	default:
-		log.Fatalln("Unexpected filter type:", filterType)
-		return nil
-	}
-}
-
 func ParseSinglePart(query []rune) (string, int) {
-	// TODO: Add espacing via backslash and quotes
+	sb := strings.Builder{}
+	escaped := false
+	quoted := false
+
 	for i, r := range query {
-		if r == specifierRune || r == equalityRune {
-			return string(query[:i]), i
+		if escaped {
+			sb.WriteRune(r)
+			escaped = false
+		} else if quoted {
+			if r == quoteRune {
+				quoted = false
+			} else {
+				sb.WriteRune(r)
+			}
+		} else {
+			switch r {
+			case specifierRune, equalityRune:
+				return sb.String(), i
+
+			case escapeRune:
+				escaped = true
+
+			case quoteRune:
+				quoted = true
+
+			default:
+				sb.WriteRune(r)
+			}
 		}
 	}
 
-	return string(query), len(query)
+	if escaped || quoted {
+		log.Fatalln("Unexpected end of query - trailing escape or quote")
+	}
+
+	return sb.String(), len(query)
 }
 
 func ParseQuery(query string) []QueryPart {
