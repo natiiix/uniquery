@@ -12,7 +12,7 @@ import (
 
 const (
 	jsonFile  = "test.json"
-	testQuery = `**.href~".* item"..title`
+	testQuery = `**.href!~".* item$"..title`
 )
 
 func must(err error) {
@@ -104,6 +104,14 @@ func (f RegexFilter) IsMatch(value interface{}) bool {
 	return false
 }
 
+type InvertFilter struct {
+	InnerFilter Filter
+}
+
+func (f InvertFilter) IsMatch(value interface{}) bool {
+	return !f.InnerFilter.IsMatch(value)
+}
+
 type Filter interface {
 	IsMatch(value interface{}) bool
 }
@@ -159,6 +167,7 @@ const (
 	specifierRune = '.'
 	equalityRune  = '='
 	regexRune     = '~'
+	invertRune    = '!'
 )
 
 const (
@@ -183,7 +192,7 @@ func ParseSinglePart(query []rune) (string, int) {
 			}
 		} else {
 			switch r {
-			case specifierRune, equalityRune, regexRune:
+			case specifierRune, equalityRune, regexRune, invertRune:
 				return sb.String(), i
 
 			case escapeRune:
@@ -205,6 +214,34 @@ func ParseSinglePart(query []rune) (string, int) {
 	return sb.String(), len(query)
 }
 
+func ParseSingleFilter(query []rune) (Filter, int) {
+	if len(query) <= 0 {
+		log.Fatalln("Unexpected end of filter")
+		return nil, 0
+	}
+
+	switch query[0] {
+	case specifierRune:
+		return nil, 0
+
+	case equalityRune:
+		value, len := ParseSinglePart(query[1:])
+		return EqualityFilter{Value: value}, 1 + len
+
+	case regexRune:
+		regex, len := ParseSinglePart(query[1:])
+		return RegexFilter{Regex: regexp.MustCompile(regex)}, 1 + len
+
+	case invertRune:
+		inner, len := ParseSingleFilter(query[1:])
+		return InvertFilter{InnerFilter: inner}, 1 + len
+
+	default:
+		log.Fatalln("Unexpected filter prefix:", string(query[0]))
+		return nil, 0
+	}
+}
+
 func ParseQuery(query string) []QueryPart {
 	queryRunes := []rune(query)
 	parts := []QueryPart{}
@@ -215,27 +252,13 @@ func ParseQuery(query string) []QueryPart {
 
 		filters := []Filter{}
 
-		for i < len(queryRunes) && queryRunes[i] != specifierRune {
-			filterValue, filterLength := ParseSinglePart(queryRunes[i+1:])
-
-			switch queryRunes[i] {
-			case equalityRune:
-				filters = append(filters, EqualityFilter{Value: filterValue})
-
-			case regexRune:
-				regex, err := regexp.Compile(filterValue)
-
-				if err != nil {
-					log.Fatalf("Unable to compile regular expression \"%s\" - %v\n", filterValue, err)
-				}
-
-				filters = append(filters, RegexFilter{Regex: regex})
-
-			default:
-				log.Fatalln("Unexpected meta rune:", queryRunes[i])
+		for i < len(queryRunes) {
+			if filter, filterLength := ParseSingleFilter(queryRunes[i:]); filter != nil {
+				filters = append(filters, filter)
+				i += filterLength
+			} else {
+				break
 			}
-
-			i += 1 + filterLength
 		}
 
 		parts = append(parts, QueryPart{Specifier: specifier, Filters: filters})
