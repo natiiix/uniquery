@@ -98,7 +98,19 @@ func ParseQuery(query string) []QueryPart {
 	queryRunes := []rune(query)
 	parts := []QueryPart{}
 
-	for i := 0; i < len(queryRunes); i++ {
+	// Empty query has no query parts.
+	if len(queryRunes) == 0 {
+		return parts
+	} else if queryRunes[0] == specifierRune {
+		log.Fatalf("Query must not begin with the specifier prefix rune '%c'\n", specifierRune)
+	}
+
+	for i := 0; i < len(queryRunes) + 1; i++ {
+		// Every specifier must be prefixed by the specifier rune.
+		if i > 0 && queryRunes[i - 1] != specifierRune {
+			log.Fatalf("Unexpected rune '%c' at index %d (expected a specifier prefix rune '%c')\n", queryRunes[i], i, specifierRune)
+		}
+
 		specifier, specifierLength := ParseSinglePart(queryRunes[i:])
 		i += specifierLength
 
