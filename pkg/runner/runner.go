@@ -8,9 +8,13 @@ import (
 	"github.com/natiiix/uniquery/pkg/parser"
 )
 
+var Verbose bool = false
+
 func Run(query string, root interface{}) []Element {
 	queryParts := parser.ParseQuery(query)
-	log.Printf("Parsed query: %+q\n", queryParts)
+	if Verbose {
+		log.Printf("Parsed query: %+q\n", queryParts)
+	}
 	rootElem := NewElementRoot(root)
 	results := rootElem.Query(queryParts)
 	return results
