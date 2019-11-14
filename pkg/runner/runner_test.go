@@ -27,6 +27,39 @@ var testTab = []struct {
 	{`**`, `"root"`, []interface{}{"root"}},
 	{`**`, `1234.56`, []interface{}{1234.56}},
 	{`**`, `true`, []interface{}{true}},
+
+	// There are no children, so there is nothing to return.
+	{`child`, `"root"`, []interface{}{}},
+	{`child`, `1234.56`, []interface{}{}},
+	{`child`, `true`, []interface{}{}},
+
+	{`child.another.abc`, `"root"`, []interface{}{}},
+	{`child.another.abc`, `1234.56`, []interface{}{}},
+	{`child.another.abc`, `true`, []interface{}{}},
+
+	{`first.second.0.last`, `"root"`, []interface{}{}},
+	{`first.second.0.last`, `1234.56`, []interface{}{}},
+	{`first.second.0.last`, `true`, []interface{}{}},
+
+	{`child.`, `"root"`, []interface{}{}},
+	{`child.`, `1234.56`, []interface{}{}},
+	{`child.`, `true`, []interface{}{}},
+
+	{`child..`, `"root"`, []interface{}{}},
+	{`child..`, `1234.56`, []interface{}{}},
+	{`child..`, `true`, []interface{}{}},
+
+	{`child........`, `"root"`, []interface{}{}},
+	{`child........`, `1234.56`, []interface{}{}},
+	{`child........`, `true`, []interface{}{}},
+
+	{`*.`, `"root"`, []interface{}{}},
+	{`*.`, `1234.56`, []interface{}{}},
+	{`*.`, `true`, []interface{}{}},
+
+	{`**.`, `"root"`, []interface{}{}},
+	{`**.`, `1234.56`, []interface{}{}},
+	{`**.`, `true`, []interface{}{}},
 }
 
 func TestRun(t *testing.T) {
@@ -40,7 +73,7 @@ func TestRun(t *testing.T) {
 			}
 
 			if len(results) != len(tt.results) {
-				t.Errorf("Unexpected number of results: %d instead of %d", len(tt.results), len(results))
+				t.Errorf("Unexpected number of results: %d instead of %d", len(results), len(tt.results))
 				return
 			}
 
