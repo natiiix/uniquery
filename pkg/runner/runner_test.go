@@ -5,11 +5,13 @@ import (
 	"testing"
 )
 
-var testTab = []struct {
+type testTab []struct {
 	query   string
 	json    string
 	results []interface{}
-}{
+}
+
+var testTabChildlessRoot = testTab{
 	// Empty query returns the root element.
 	{``, `"root"`, []interface{}{"root"}},
 	{``, `"1234"`, []interface{}{"1234"}},
@@ -62,26 +64,30 @@ var testTab = []struct {
 	{`**.`, `true`, []interface{}{}},
 }
 
-func TestRun(t *testing.T) {
-	for _, tt := range testTab {
-		t.Run(fmt.Sprintf(`Query: "%s", JSON: "%s"`, tt.query, tt.json), func(t *testing.T) {
-			results, err := RunJsonString(tt.query, tt.json)
+func runTests(t *testing.T, tab testTab) {
+	for _, entry := range tab {
+		t.Run(fmt.Sprintf(`Query: "%s", JSON: "%s"`, entry.query, entry.json), func(t *testing.T) {
+			results, err := RunJsonString(entry.query, entry.json)
 
 			if err != nil {
 				t.Error(err)
 				return
 			}
 
-			if len(results) != len(tt.results) {
-				t.Errorf("Unexpected number of results: %d instead of %d", len(results), len(tt.results))
+			if len(results) != len(entry.results) {
+				t.Errorf("Unexpected number of results: %d instead of %d", len(results), len(entry.results))
 				return
 			}
 
-			for i, expected := range tt.results {
+			for i, expected := range entry.results {
 				if reality := results[i].Value; reality != expected {
 					t.Errorf(`Unexpected result at index %d: "%#v" (%T) instead of "%#v" (%T)`, i, reality, reality, expected, expected)
 				}
 			}
 		})
 	}
+}
+
+func TestRunChildlessRoot(t *testing.T) {
+	runTests(t, testTabChildlessRoot)
 }
