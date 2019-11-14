@@ -12,10 +12,21 @@ var testTab = []struct {
 }{
 	// Empty query returns the root element.
 	{``, `"root"`, []interface{}{"root"}},
-	// All numbers in JSON are float64 in Golang due to JavaScript's Number type.
+	{``, `"1234"`, []interface{}{"1234"}},
+	// All numbers parsed from JSON are float64 in Golang due to JavaScript's ambiguous Number type.
 	{``, `1234`, []interface{}{1234.0}},
 	{``, `1234.56`, []interface{}{1234.56}},
 	{``, `true`, []interface{}{true}},
+
+	// All of these root elements are childless.
+	{`*`, `"root"`, []interface{}{}},
+	{`*`, `1234.56`, []interface{}{}},
+	{`*`, `true`, []interface{}{}},
+
+	// The wildcard query should return the root element.
+	{`**`, `"root"`, []interface{}{"root"}},
+	{`**`, `1234.56`, []interface{}{1234.56}},
+	{`**`, `true`, []interface{}{true}},
 }
 
 func TestRun(t *testing.T) {
