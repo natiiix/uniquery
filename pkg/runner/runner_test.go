@@ -1,21 +1,43 @@
 package runner
 
 import (
+	"fmt"
 	"testing"
 )
 
+var testTab = []struct {
+	query   string
+	json    string
+	results []interface{}
+}{
+	// Empty query returns the root element.
+	{``, `"root"`, []interface{}{"root"}},
+	// All numbers in JSON are float64 in Golang due to JavaScript's Number type.
+	{``, `1234`, []interface{}{1234.0}},
+	{``, `1234.56`, []interface{}{1234.56}},
+	{``, `true`, []interface{}{true}},
+}
+
 func TestRun(t *testing.T) {
-	results, err := RunJsonString(``, `"Test"`)
+	for _, tt := range testTab {
+		t.Run(fmt.Sprintf(`Query: "%s", JSON: "%s"`, tt.query, tt.json), func(t *testing.T) {
+			results, err := RunJsonString(tt.query, tt.json)
 
-	if err != nil {
-		t.Fatal(err)
-	}
+			if err != nil {
+				t.Error(err)
+				return
+			}
 
-	if len(results) != 1 {
-		t.Fatal("Unexpected number of results:", len(results))
-	}
+			if len(results) != len(tt.results) {
+				t.Errorf("Unexpected number of results: %d instead of %d", len(tt.results), len(results))
+				return
+			}
 
-	if results[0].Value != "Test" {
-		t.Error("Unexpected value of the result:", results[0].Value)
+			for i, expected := range tt.results {
+				if reality := results[i].Value; reality != expected {
+					t.Errorf(`Unexpected result at index %d: "%#v" (%T) instead of "%#v" (%T)`, i, reality, reality, expected, expected)
+				}
+			}
+		})
 	}
 }
