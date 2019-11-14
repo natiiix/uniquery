@@ -77,7 +77,7 @@ func (e Element) Query(parts []parser.QueryPart) []Element {
 	selected := []Element{}
 	spec := part.Specifier
 
-	if spec == "" {
+	if spec == "" && e.Parent != nil {
 		selected = []Element{*e.Parent}
 	} else if spec == "*" {
 		selected = e.GetChildren()
