@@ -1,12 +1,8 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
-	"os"
 
-	"github.com/natiiix/uniquery/pkg/parser"
 	"github.com/natiiix/uniquery/pkg/runner"
 )
 
@@ -22,19 +18,11 @@ func must(err error) {
 }
 
 func main() {
-	f, err := os.Open(jsonFile)
-	must(err)
-	defer f.Close()
-
-	var root interface{}
-	err = json.NewDecoder(f).Decode(&root)
-	must(err)
-
-	queryParts := parser.ParseQuery(testQuery)
-	fmt.Printf("%+q\n", queryParts)
-
-	rootElem := runner.NewElementRoot(root)
-	for i, v := range rootElem.Query(queryParts) {
-		fmt.Printf("%d: %#v\n", i, v.Value)
+	if results, err := runner.RunJsonFile(testQuery, jsonFile); err != nil {
+		log.Fatalln(err)
+	} else {
+		for i, v := range results {
+			log.Printf("%d: %#v\n", i, v.Value)
+		}
 	}
 }
