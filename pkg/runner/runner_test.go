@@ -70,22 +70,73 @@ var testTabChildlessRoot = testTab{
 	{`**.`, `true`, []interface{}{}},
 }
 
-var testTabParentRoot = testTab{
+var testTabSingleChildRoot = testTab{
 	// Empty array and map.
 	{``, `[]`, []interface{}{[]interface{}{}}},
-	{``, `{}`, []interface{}{make(map[string]interface{})}},
+	{``, `{}`, []interface{}{map[string]interface{}{}}},
 
 	{`*`, `[]`, []interface{}{}},
 	{`*`, `{}`, []interface{}{}},
 
 	{`**`, `[]`, []interface{}{[]interface{}{}}},
-	{`**`, `{}`, []interface{}{make(map[string]interface{})}},
+	{`**`, `{}`, []interface{}{map[string]interface{}{}}},
 
 	{`child`, `[]`, []interface{}{}},
 	{`child`, `{}`, []interface{}{}},
 
 	{`0`, `[]`, []interface{}{}},
 	{`0`, `{}`, []interface{}{}},
+
+	// Single-item array.
+	{``, `[123]`, []interface{}{[]interface{}{123.0}}},
+	{``, `[123.45]`, []interface{}{[]interface{}{123.45}}},
+	{``, `["abc"]`, []interface{}{[]interface{}{"abc"}}},
+	{``, `[false]`, []interface{}{[]interface{}{false}}},
+	{``, `[null]`, []interface{}{[]interface{}{nil}}},
+	{``, `[[]]`, []interface{}{[]interface{}{[]interface{}{}}}},
+	{``, `[{}]`, []interface{}{[]interface{}{map[string]interface{}{}}}},
+
+	{`*`, `[123]`, []interface{}{123.0}},
+	{`*`, `["abc"]`, []interface{}{"abc"}},
+
+	{`**`, `[123]`, []interface{}{[]interface{}{123.0}, 123.0}},
+	{`**`, `["abc"]`, []interface{}{[]interface{}{"abc"}, "abc"}},
+
+	{`child`, `[123]`, []interface{}{}},
+	{`child`, `["abc"]`, []interface{}{}},
+
+	{`0`, `[123]`, []interface{}{123.0}},
+	{`0`, `["abc"]`, []interface{}{"abc"}},
+
+	{`1`, `[123]`, []interface{}{}},
+	{`1`, `["abc"]`, []interface{}{}},
+
+	// Single-item map.
+	{``, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}}},
+	{``, `{"child": 123.45}`, []interface{}{map[string]interface{}{"child": 123.45}}},
+	{``, `{"child": "value"}`, []interface{}{map[string]interface{}{"child": "value"}}},
+	{``, `{"child": false}`, []interface{}{map[string]interface{}{"child": false}}},
+	{``, `{"child": null}`, []interface{}{map[string]interface{}{"child": nil}}},
+	{``, `{"child": []}`, []interface{}{map[string]interface{}{"child": []interface{}{}}}},
+	{``, `{"child": {}}`, []interface{}{map[string]interface{}{"child": map[string]interface{}{}}}},
+
+	{`*`, `{"child": 123}`, []interface{}{123.0}},
+	{`*`, `{"child": "value"}`, []interface{}{"value"}},
+
+	{`**`, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}, 123.0}},
+	{`**`, `{"child": "value"}`, []interface{}{map[string]interface{}{"child": "value"}, "value"}},
+
+	{`child`, `{"child": 123}`, []interface{}{123.0}},
+	{`child`, `{"child": "value"}`, []interface{}{"value"}},
+
+	{`another`, `{"child": 123}`, []interface{}{}},
+	{`another`, `{"child": "value"}`, []interface{}{}},
+
+	{`0`, `{"child": 123}`, []interface{}{}},
+	{`0`, `{"child": "value"}`, []interface{}{}},
+
+	{`1`, `{"child": 123}`, []interface{}{}},
+	{`1`, `{"child": "value"}`, []interface{}{}},
 }
 
 func runTests(t *testing.T, tab testTab) {
@@ -116,6 +167,6 @@ func TestRunChildlessRoot(t *testing.T) {
 	runTests(t, testTabChildlessRoot)
 }
 
-func TestRunParentRoot(t *testing.T) {
-	runTests(t, testTabParentRoot)
+func TestRunSingleChildRoot(t *testing.T) {
+	runTests(t, testTabSingleChildRoot)
 }
