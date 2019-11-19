@@ -91,7 +91,7 @@ func (e Element) Query(parts []parser.QueryPart) []Element {
 			}
 
 		case []interface{}:
-			if index, err := strconv.Atoi(spec); err == nil && (index >= 0 || index < len(t)) {
+			if index, err := strconv.Atoi(spec); err == nil && (index >= 0 && index < len(t)) {
 				selected = []Element{NewElement(t[index], &e)}
 			}
 		}
