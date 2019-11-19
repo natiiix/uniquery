@@ -3,6 +3,8 @@ package runner
 import (
 	"fmt"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type testTab []struct {
@@ -19,21 +21,25 @@ var testTabChildlessRoot = testTab{
 	{``, `1234`, []interface{}{1234.0}},
 	{``, `1234.56`, []interface{}{1234.56}},
 	{``, `true`, []interface{}{true}},
+	{``, `null`, []interface{}{nil}},
 
 	// All of these root elements are childless.
 	{`*`, `"root"`, []interface{}{}},
 	{`*`, `1234.56`, []interface{}{}},
 	{`*`, `true`, []interface{}{}},
+	{`*`, `null`, []interface{}{}},
 
 	// The wildcard query should return the root element.
 	{`**`, `"root"`, []interface{}{"root"}},
 	{`**`, `1234.56`, []interface{}{1234.56}},
 	{`**`, `true`, []interface{}{true}},
+	{`**`, `null`, []interface{}{nil}},
 
 	// There are no children, so there is nothing to return.
 	{`child`, `"root"`, []interface{}{}},
 	{`child`, `1234.56`, []interface{}{}},
 	{`child`, `true`, []interface{}{}},
+	{`child`, `null`, []interface{}{}},
 
 	{`child.another.abc`, `"root"`, []interface{}{}},
 	{`child.another.abc`, `1234.56`, []interface{}{}},
@@ -64,9 +70,27 @@ var testTabChildlessRoot = testTab{
 	{`**.`, `true`, []interface{}{}},
 }
 
+var testTabParentRoot = testTab{
+	// Empty array and map.
+	{``, `[]`, []interface{}{[]interface{}{}}},
+	{``, `{}`, []interface{}{make(map[string]interface{})}},
+
+	{`*`, `[]`, []interface{}{}},
+	{`*`, `{}`, []interface{}{}},
+
+	{`**`, `[]`, []interface{}{[]interface{}{}}},
+	{`**`, `{}`, []interface{}{make(map[string]interface{})}},
+
+	{`child`, `[]`, []interface{}{}},
+	{`child`, `{}`, []interface{}{}},
+
+	{`0`, `[]`, []interface{}{}},
+	{`0`, `{}`, []interface{}{}},
+}
+
 func runTests(t *testing.T, tab testTab) {
 	for _, entry := range tab {
-		t.Run(fmt.Sprintf(`Query: "%s", JSON: "%s"`, entry.query, entry.json), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Query:`%s`, JSON:`%s`", entry.query, entry.json), func(t *testing.T) {
 			results, err := RunJsonString(entry.query, entry.json)
 
 			if err != nil {
@@ -80,8 +104,8 @@ func runTests(t *testing.T, tab testTab) {
 			}
 
 			for i, expected := range entry.results {
-				if reality := results[i].Value; reality != expected {
-					t.Errorf(`Unexpected result at index %d: "%#v" (%T) instead of "%#v" (%T)`, i, reality, reality, expected, expected)
+				if reality := results[i].Value; !cmp.Equal(reality, expected) {
+					t.Errorf("Unexpected result at index %d: `%#v` (%T) instead of `%#v` (%T)", i, reality, reality, expected, expected)
 				}
 			}
 		})
@@ -90,4 +114,8 @@ func runTests(t *testing.T, tab testTab) {
 
 func TestRunChildlessRoot(t *testing.T) {
 	runTests(t, testTabChildlessRoot)
+}
+
+func TestRunParentRoot(t *testing.T) {
+	runTests(t, testTabParentRoot)
 }
