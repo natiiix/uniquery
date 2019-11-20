@@ -1,6 +1,9 @@
 package filters
 
-import "regexp"
+import (
+	"regexp"
+	"strconv"
+)
 
 type EqualityFilter struct {
 	Value string
@@ -9,7 +12,11 @@ type EqualityFilter struct {
 func (f EqualityFilter) IsMatch(value interface{}) bool {
 	if valueStr, ok := value.(string); ok {
 		return valueStr == f.Value
+	} else if valueFloat, ok := value.(float64); ok {
+		filterFloat, err := strconv.ParseFloat(f.Value, 64)
+		return err == nil && filterFloat == valueFloat
 	}
+	// TODO: Add remaining types (bool, nil).
 
 	return false
 }
