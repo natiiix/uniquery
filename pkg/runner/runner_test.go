@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -139,9 +140,62 @@ var testTabSingleChildRoot = testTab{
 	{`1`, `{"child": "value"}`, []interface{}{}},
 }
 
-func runTests(t *testing.T, tab testTab) {
-	for _, entry := range tab {
-		t.Run(fmt.Sprintf("Query:`%s`, JSON:`%s`", entry.query, entry.json), func(t *testing.T) {
+const complexJSON string = `[
+	{
+		"name": "John Doe",
+		"debt": 1000
+	},
+	{
+		"name": "Jane Doe",
+		"debt": 2000
+	},
+	{
+		"name": "John Daniel",
+		"debt": 0
+	},
+	{
+		"name": "Robert Denver",
+		"debt": 0
+	},
+	{
+		"name": "Clark Denver",
+		"debt": 10000
+	}
+]`
+
+var testTabEquality = testTab{
+	{`*.debt=0..name`, complexJSON, []interface{}{"John Daniel", "Robert Denver"}},
+	{`*.debt=1..name`, complexJSON, []interface{}{}},
+	{`*.debt=10..name`, complexJSON, []interface{}{}},
+	{`*.debt=100..name`, complexJSON, []interface{}{}},
+	{`*.debt=1000..name`, complexJSON, []interface{}{"John Doe"}},
+}
+
+var testTabEqualityInverted = testTab{
+	{`*.debt!=0..name`, complexJSON, []interface{}{"John Doe", "Jane Doe", "Clark Denver"}},
+	{`*.debt!=1..name`, complexJSON, []interface{}{"John Doe", "Jane Doe", "John Daniel", "Robert Denver", "Clark Denver"}},
+}
+
+var testTabRegex = testTab{
+	{`*.name~" Doe$"`, complexJSON, []interface{}{"John Doe", "Jane Doe"}},
+	{`*.name~"^John "`, complexJSON, []interface{}{"John Doe", "John Daniel"}},
+}
+
+var testTabRegexInverted = testTab{
+	{`*.name!~" Doe$"`, complexJSON, []interface{}{"John Daniel", "Robert Denver", "Clark Denver"}},
+	{`*.name!~"^John "`, complexJSON, []interface{}{"Jane Doe", "Robert Denver", "Clark Denver"}},
+}
+
+func runTests(t *testing.T, tab testTab, verboseName bool) {
+	for index, entry := range tab {
+		var testName string
+		if verboseName {
+			testName = fmt.Sprintf("Query:`%s`, JSON:`%s`", entry.query, entry.json)
+		} else {
+			testName = strconv.Itoa(index)
+		}
+
+		t.Run(testName, func(t *testing.T) {
 			results, err := RunJsonString(entry.query, entry.json)
 
 			if err != nil {
@@ -164,9 +218,25 @@ func runTests(t *testing.T, tab testTab) {
 }
 
 func TestRunChildlessRoot(t *testing.T) {
-	runTests(t, testTabChildlessRoot)
+	runTests(t, testTabChildlessRoot, true)
 }
 
 func TestRunSingleChildRoot(t *testing.T) {
-	runTests(t, testTabSingleChildRoot)
+	runTests(t, testTabSingleChildRoot, true)
+}
+
+func TestRunEquality(t *testing.T) {
+	runTests(t, testTabEquality, false)
+}
+
+func TestRunEqualityInverted(t *testing.T) {
+	runTests(t, testTabEqualityInverted, false)
+}
+
+func TestRunRegex(t *testing.T) {
+	runTests(t, testTabRegex, false)
+}
+
+func TestRunRegexInverted(t *testing.T) {
+	runTests(t, testTabRegexInverted, false)
 }
