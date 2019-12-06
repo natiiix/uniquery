@@ -51,6 +51,20 @@ func RunJsonFile(query string, jsonPath string) ([]Element, error) {
 	return Run(query, root), nil
 }
 
+func RunYaml(query string, yamlData []byte) ([]Element, error) {
+	var root interface{}
+	err := yaml.Unmarshal(yamlData, &root)
+	if err != nil {
+		return nil, err
+	}
+
+	return Run(query, root), nil
+}
+
+func RunYamlString(query string, yamlStr string) ([]Element, error) {
+	return RunYaml(query, []byte(yamlStr))
+}
+
 func RunYamlFile(query string, jsonPath string) ([]Element, error) {
 	f, err := os.Open(jsonPath)
 	if err != nil {
