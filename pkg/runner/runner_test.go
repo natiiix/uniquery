@@ -14,7 +14,7 @@ type testTab []struct {
 	results []interface{}
 }
 
-var testTabChildlessRoot = testTab{
+var testTabJSONChildlessRoot = testTab{
 	// Empty query returns the root element.
 	{``, `"root"`, []interface{}{"root"}},
 	{``, `"1234"`, []interface{}{"1234"}},
@@ -71,7 +71,7 @@ var testTabChildlessRoot = testTab{
 	{`**.`, `true`, []interface{}{}},
 }
 
-var testTabSingleChildRoot = testTab{
+var testTabJSONSingleChildRoot = testTab{
 	// Empty array and map.
 	{``, `[]`, []interface{}{[]interface{}{}}},
 	{``, `{}`, []interface{}{map[string]interface{}{}}},
@@ -163,7 +163,7 @@ const complexJSON string = `[
 	}
 ]`
 
-var testTabEquality = testTab{
+var testTabJSONEquality = testTab{
 	{`*.debt=0..name`, complexJSON, []interface{}{"John Daniel", "Robert Denver"}},
 	{`*.debt=1..name`, complexJSON, []interface{}{}},
 	{`*.debt=10..name`, complexJSON, []interface{}{}},
@@ -171,22 +171,70 @@ var testTabEquality = testTab{
 	{`*.debt=1000..name`, complexJSON, []interface{}{"John Doe"}},
 }
 
-var testTabEqualityInverted = testTab{
+var testTabJSONEqualityInverted = testTab{
 	{`*.debt!=0..name`, complexJSON, []interface{}{"John Doe", "Jane Doe", "Clark Denver"}},
 	{`*.debt!=1..name`, complexJSON, []interface{}{"John Doe", "Jane Doe", "John Daniel", "Robert Denver", "Clark Denver"}},
 }
 
-var testTabRegex = testTab{
+var testTabJSONRegex = testTab{
 	{`*.name~" Doe$"`, complexJSON, []interface{}{"John Doe", "Jane Doe"}},
 	{`*.name~"^John "`, complexJSON, []interface{}{"John Doe", "John Daniel"}},
 }
 
-var testTabRegexInverted = testTab{
+var testTabJSONRegexInverted = testTab{
 	{`*.name!~" Doe$"`, complexJSON, []interface{}{"John Daniel", "Robert Denver", "Clark Denver"}},
 	{`*.name!~"^John "`, complexJSON, []interface{}{"Jane Doe", "Robert Denver", "Clark Denver"}},
 }
 
-func runTests(t *testing.T, tab testTab, verboseName bool) {
+const complexYAML = `name: Go
+on: [push, pull_request]
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Get dependencies
+      run: go get -v -t -d ./...
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Run tests
+      run: go test -v ./...`
+
+var testTabYAMLGeneral = testTab{
+	{`name`, complexYAML, []interface{}{"Go"}},
+	{`name=Go`, complexYAML, []interface{}{"Go"}},
+	{`name~Go`, complexYAML, []interface{}{"Go"}},
+	{`name~^Go$`, complexYAML, []interface{}{"Go"}},
+
+	{`on`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}}},
+	{`on.*~pu`, complexYAML, []interface{}{"push", "pull_request"}},
+	{`on.*~^pu`, complexYAML, []interface{}{"push", "pull_request"}},
+	{`on.*=push`, complexYAML, []interface{}{"push"}},
+	{`on.*~push`, complexYAML, []interface{}{"push"}},
+	{`on.*~^push$`, complexYAML, []interface{}{"push"}},
+	{`on.*=push.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}}},
+	{`on.*~push.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}}},
+	{`on.*~^push$.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}}},
+
+	// TODO: While this is currently the expected result, it is not the desired final result.
+	// Some kind of filtering should happen to remove duplicates.
+	{`on.*~^pu.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}, []interface{}{"push", "pull_request"}}},
+}
+
+func runTests(t *testing.T, tab testTab, verboseName bool, runFunc func(string, string) ([]Element, error)) {
 	for index, entry := range tab {
 		var testName string
 		if verboseName {
@@ -196,7 +244,7 @@ func runTests(t *testing.T, tab testTab, verboseName bool) {
 		}
 
 		t.Run(testName, func(t *testing.T) {
-			results, err := RunJsonString(entry.query, entry.json)
+			results, err := runFunc(entry.query, entry.json)
 
 			if err != nil {
 				t.Error(err)
@@ -217,26 +265,38 @@ func runTests(t *testing.T, tab testTab, verboseName bool) {
 	}
 }
 
-func TestRunChildlessRoot(t *testing.T) {
-	runTests(t, testTabChildlessRoot, true)
+func runTestsJSON(t *testing.T, tab testTab, verboseName bool) {
+	runTests(t, tab, verboseName, RunJsonString)
 }
 
-func TestRunSingleChildRoot(t *testing.T) {
-	runTests(t, testTabSingleChildRoot, true)
+func runTestsYAML(t *testing.T, tab testTab, verboseName bool) {
+	runTests(t, tab, verboseName, RunYamlString)
 }
 
-func TestRunEquality(t *testing.T) {
-	runTests(t, testTabEquality, false)
+func TestRunJSONChildlessRoot(t *testing.T) {
+	runTestsJSON(t, testTabJSONChildlessRoot, true)
 }
 
-func TestRunEqualityInverted(t *testing.T) {
-	runTests(t, testTabEqualityInverted, false)
+func TestRunJSONSingleChildRoot(t *testing.T) {
+	runTestsJSON(t, testTabJSONSingleChildRoot, true)
 }
 
-func TestRunRegex(t *testing.T) {
-	runTests(t, testTabRegex, false)
+func TestRunJSONEquality(t *testing.T) {
+	runTestsJSON(t, testTabJSONEquality, false)
 }
 
-func TestRunRegexInverted(t *testing.T) {
-	runTests(t, testTabRegexInverted, false)
+func TestRunJSONEqualityInverted(t *testing.T) {
+	runTestsJSON(t, testTabJSONEqualityInverted, false)
+}
+
+func TestRunJSONRegex(t *testing.T) {
+	runTestsJSON(t, testTabJSONRegex, false)
+}
+
+func TestRunJSONRegexInverted(t *testing.T) {
+	runTestsJSON(t, testTabJSONRegexInverted, false)
+}
+
+func TestRunYAMLGeneral(t *testing.T) {
+	runTestsYAML(t, testTabYAMLGeneral, false)
 }
