@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/natiiix/uniquery/pkg/parser"
 )
 
@@ -43,6 +45,35 @@ func RunJsonFile(query string, jsonPath string) ([]Element, error) {
 
 	var root interface{}
 	if err = json.NewDecoder(f).Decode(&root); err != nil {
+		return nil, err
+	}
+
+	return Run(query, root), nil
+}
+
+func RunYaml(query string, yamlData []byte) ([]Element, error) {
+	var root interface{}
+	err := yaml.Unmarshal(yamlData, &root)
+	if err != nil {
+		return nil, err
+	}
+
+	return Run(query, root), nil
+}
+
+func RunYamlString(query string, yamlStr string) ([]Element, error) {
+	return RunYaml(query, []byte(yamlStr))
+}
+
+func RunYamlFile(query string, jsonPath string) ([]Element, error) {
+	f, err := os.Open(jsonPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var root interface{}
+	if err = yaml.NewDecoder(f).Decode(&root); err != nil {
 		return nil, err
 	}
 

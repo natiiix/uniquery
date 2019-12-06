@@ -1,7 +1,9 @@
 package runner
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/natiiix/uniquery/pkg/filters"
 	"github.com/natiiix/uniquery/pkg/parser"
@@ -15,6 +17,13 @@ type Element struct {
 func (e Element) GetChildren() []Element {
 	switch t := e.Value.(type) {
 	case map[string]interface{}:
+		children := []Element{}
+		for _, v := range t {
+			children = append(children, NewElement(v, &e))
+		}
+		return children
+
+	case map[interface{}]interface{}:
 		children := []Element{}
 		for _, v := range t {
 			children = append(children, NewElement(v, &e))
@@ -66,6 +75,24 @@ func NewElementRoot(value interface{}) Element {
 	return NewElement(value, nil)
 }
 
+func compareKey(key interface{}, specifier string) bool {
+	switch t := key.(type) {
+	case string:
+		return t == specifier
+
+	case bool:
+		specLower := strings.ToLower(specifier)
+		if t {
+			return specLower == "true" || specLower == "on" || specLower == "enabled" || specLower == "enable"
+		} else {
+			return specLower == "false" || specLower == "off" || specLower == "disabled" || specLower == "disable"
+		}
+
+	default:
+		return fmt.Sprintf("%v", t) == specifier
+	}
+}
+
 func (e Element) Query(parts []parser.QueryPart) []Element {
 	if len(parts) == 0 {
 		return []Element{e}
@@ -88,6 +115,13 @@ func (e Element) Query(parts []parser.QueryPart) []Element {
 		case map[string]interface{}:
 			if child, exists := t[spec]; exists {
 				selected = []Element{NewElement(child, &e)}
+			}
+
+		case map[interface{}]interface{}:
+			for k, v := range t {
+				if compareKey(k, spec) {
+					selected = append(selected, NewElement(v, &e))
+				}
 			}
 
 		case []interface{}:
