@@ -12,12 +12,13 @@ Please see [query examples](examples.md) for rough query syntax explanation.
 
 ## Data Format Support
 
-| Format | Support | Notes                                |
-| :----: | :-----: | :----------------------------------- |
-|  JSON  |   Yes   | It should work according to tests.   |
-|  YAML  | Partial | Not very well tested yet.            |
-|  XML   |   No    | More complicated than JSON and YAML. |
-|  CSV   |   No    | Support is not currently planned.    |
+| Format | Support                | Notes                                |
+| :----: | :--------------------- | :----------------------------------- |
+|  JSON  | :heavy_check_mark: Yes | Works according to tests.            |
+|  YAML  | :question: Partial     | Not very well tested yet.            |
+|  XML   | :x: No                 | More complicated than JSON and YAML. |
+|  CSV   | :x: No                 | Support is not currently planned.    |
+
 
 ## Example (JSON)
 
