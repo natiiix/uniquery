@@ -229,6 +229,9 @@ var testTabYAMLGeneral = testTab{
 	{`on.*~push.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}}},
 	{`on.*~^push$.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}}},
 
+	{`jobs.*.steps.*.run..name`, complexYAML, []interface{}{"Get dependencies", "Build", "Run tests"}},
+	{`**.run..name`, complexYAML, []interface{}{"Get dependencies", "Build", "Run tests"}},
+
 	// TODO: While this is currently the expected result, it is not the desired final result.
 	// Some kind of filtering should happen to remove duplicates.
 	{`on.*~^pu.`, complexYAML, []interface{}{[]interface{}{"push", "pull_request"}, []interface{}{"push", "pull_request"}}},
