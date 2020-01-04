@@ -12,7 +12,7 @@ import (
 
 var Verbose bool = false
 
-func Run(query string, root interface{}) []Element {
+func Run(query string, root interface{}) map[string]Element {
 	queryParts := parser.ParseQuery(query)
 	if Verbose {
 		log.Printf("Parsed query: %+q\n", queryParts)
@@ -22,7 +22,7 @@ func Run(query string, root interface{}) []Element {
 	return results
 }
 
-func RunJson(query string, jsonData []byte) ([]Element, error) {
+func RunJson(query string, jsonData []byte) (map[string]Element, error) {
 	var root interface{}
 	err := json.Unmarshal(jsonData, &root)
 	if err != nil {
@@ -32,11 +32,11 @@ func RunJson(query string, jsonData []byte) ([]Element, error) {
 	return Run(query, root), nil
 }
 
-func RunJsonString(query string, jsonStr string) ([]Element, error) {
+func RunJsonString(query string, jsonStr string) (map[string]Element, error) {
 	return RunJson(query, []byte(jsonStr))
 }
 
-func RunJsonFile(query string, jsonPath string) ([]Element, error) {
+func RunJsonFile(query string, jsonPath string) (map[string]Element, error) {
 	f, err := os.Open(jsonPath)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func RunJsonFile(query string, jsonPath string) ([]Element, error) {
 	return Run(query, root), nil
 }
 
-func RunYaml(query string, yamlData []byte) ([]Element, error) {
+func RunYaml(query string, yamlData []byte) (map[string]Element, error) {
 	var root interface{}
 	err := yaml.Unmarshal(yamlData, &root)
 	if err != nil {
@@ -61,11 +61,11 @@ func RunYaml(query string, yamlData []byte) ([]Element, error) {
 	return Run(query, root), nil
 }
 
-func RunYamlString(query string, yamlStr string) ([]Element, error) {
+func RunYamlString(query string, yamlStr string) (map[string]Element, error) {
 	return RunYaml(query, []byte(yamlStr))
 }
 
-func RunYamlFile(query string, jsonPath string) ([]Element, error) {
+func RunYamlFile(query string, jsonPath string) (map[string]Element, error) {
 	f, err := os.Open(jsonPath)
 	if err != nil {
 		return nil, err

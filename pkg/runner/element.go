@@ -15,41 +15,48 @@ type Element struct {
 	Key    interface{}
 }
 
-func (e Element) GetChildren() []Element {
+func (e Element) GetChildren() map[string]Element {
 	switch t := e.Value.(type) {
 	case map[string]interface{}:
-		children := []Element{}
+		children := map[string]Element{}
 		for k, v := range t {
-			children = append(children, NewElement(v, &e, k))
+			elem := NewElement(v, &e, k)
+			children[elem.GetFullPath()] = elem
 		}
 		return children
 
 	case map[interface{}]interface{}:
-		children := []Element{}
+		children := map[string]Element{}
 		for k, v := range t {
-			children = append(children, NewElement(v, &e, k))
+			elem := NewElement(v, &e, k)
+			children[elem.GetFullPath()] = elem
 		}
 		return children
 
 	case []interface{}:
-		children := []Element{}
+		children := map[string]Element{}
 		for k, v := range t {
-			children = append(children, NewElement(v, &e, k))
+			elem := NewElement(v, &e, k)
+			children[elem.GetFullPath()] = elem
 		}
 		return children
 
 	default:
-		return []Element{}
+		return map[string]Element{}
 	}
 }
 
-func (e Element) GetChildrenRecursive() []Element {
+func (e Element) GetChildrenRecursive() map[string]Element {
 	// NOTE: Includes the element itself
 
-	children := []Element{e}
+	children := e.ToMap()
 
-	for _, c := range e.GetChildren() {
-		children = append(children, c.GetChildrenRecursive()...)
+	for k1, v1 := range e.GetChildren() {
+		children[k1] = v1
+
+		for k2, v2 := range v1.GetChildrenRecursive() {
+			children[k2] = v2
+		}
 	}
 
 	return children
@@ -73,6 +80,10 @@ func (e Element) GetFullPath() string {
 	} else {
 		return fmt.Sprintf("%s.%s", e.Parent.GetFullPath(), keyStr)
 	}
+}
+
+func (e Element) ToMap() map[string]Element {
+	return map[string]Element{e.GetFullPath(): e}
 }
 
 func NewElement(value interface{}, parent *Element, key interface{}) Element {
@@ -105,19 +116,19 @@ func compareKey(key interface{}, specifier string) bool {
 	}
 }
 
-func (e Element) Query(parts []parser.QueryPart) []Element {
+func (e Element) Query(parts []parser.QueryPart) map[string]Element {
 	if len(parts) == 0 {
-		return []Element{e}
+		return e.ToMap()
 	}
 
 	part := parts[0]
 	subquery := parts[1:]
 
-	selected := []Element{}
+	selected := map[string]Element{}
 	spec := part.Specifier
 
 	if spec == "" && e.Parent != nil {
-		selected = []Element{*e.Parent}
+		selected = e.Parent.ToMap()
 	} else if spec == "*" {
 		selected = e.GetChildren()
 	} else if spec == "**" {
@@ -126,27 +137,30 @@ func (e Element) Query(parts []parser.QueryPart) []Element {
 		switch t := e.Value.(type) {
 		case map[string]interface{}:
 			if child, exists := t[spec]; exists {
-				selected = []Element{NewElement(child, &e, spec)}
+				selected = NewElement(child, &e, spec).ToMap()
 			}
 
 		case map[interface{}]interface{}:
 			for k, v := range t {
 				if compareKey(k, spec) {
-					selected = append(selected, NewElement(v, &e, k))
+					elem := NewElement(v, &e, k)
+					selected[elem.GetFullPath()] = elem
 				}
 			}
 
 		case []interface{}:
 			if index, err := strconv.Atoi(spec); err == nil && (index >= 0 && index < len(t)) {
-				selected = []Element{NewElement(t[index], &e, strconv.Itoa(index))}
+				selected = NewElement(t[index], &e, strconv.Itoa(index)).ToMap()
 			}
 		}
 	}
 
-	results := []Element{}
+	results := map[string]Element{}
 	for _, e := range selected {
 		if e.MatchesFilters(part.Filters) {
-			results = append(results, e.Query(subquery)...)
+			for k, v := range e.Query(subquery) {
+				results[k] = v
+			}
 		}
 	}
 	return results

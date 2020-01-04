@@ -29,13 +29,15 @@ func init() {
 }
 
 func main() {
-	results := []runner.Element{}
+	results := map[string]runner.Element{}
 
 	if jsonPath != "" {
 		if jsonResults, err := runner.RunJsonFile(query, jsonPath); err != nil {
 			log.Fatalln(err)
 		} else {
-			results = append(results, jsonResults...)
+			for k, v := range jsonResults {
+				results[k] = v
+			}
 		}
 	}
 
@@ -43,11 +45,13 @@ func main() {
 		if yamlResults, err := runner.RunYamlFile(query, yamlPath); err != nil {
 			log.Fatalln(err)
 		} else {
-			results = append(results, yamlResults...)
+			for k, v := range yamlResults {
+				results[k] = v
+			}
 		}
 	}
 
-	for i, v := range results {
-		log.Printf("[%d][%v] -- %#v\n", i+1, v.GetFullPath(), v.Value)
+	for k, v := range results {
+		log.Printf("[%v] -- %#v\n", k, v.Value)
 	}
 }
