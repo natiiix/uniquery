@@ -19,7 +19,6 @@ Please see [query examples](examples.md) for rough query syntax explanation.
 |  XML   | :x: No                 | More complicated than JSON and YAML. |
 |  CSV   | :x: No                 | Support is not currently planned.    |
 
-
 ## Example (JSON)
 
 Consider the following JSON file `users.json`, which maps real names to nicknames.

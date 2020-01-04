@@ -48,6 +48,6 @@ func main() {
 	}
 
 	for i, v := range results {
-		log.Printf("%d: %#v\n", i, v.Value)
+		log.Printf("[%d][%v] -- %#v\n", i+1, v.GetFullPath(), v.Value)
 	}
 }
