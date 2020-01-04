@@ -12,28 +12,29 @@ import (
 type Element struct {
 	Value  interface{}
 	Parent *Element
+	Key    interface{}
 }
 
 func (e Element) GetChildren() []Element {
 	switch t := e.Value.(type) {
 	case map[string]interface{}:
 		children := []Element{}
-		for _, v := range t {
-			children = append(children, NewElement(v, &e))
+		for k, v := range t {
+			children = append(children, NewElement(v, &e, k))
 		}
 		return children
 
 	case map[interface{}]interface{}:
 		children := []Element{}
-		for _, v := range t {
-			children = append(children, NewElement(v, &e))
+		for k, v := range t {
+			children = append(children, NewElement(v, &e, k))
 		}
 		return children
 
 	case []interface{}:
 		children := []Element{}
-		for _, v := range t {
-			children = append(children, NewElement(v, &e))
+		for k, v := range t {
+			children = append(children, NewElement(v, &e, k))
 		}
 		return children
 
@@ -64,15 +65,26 @@ func (e Element) MatchesFilters(valueFilters []filters.Filter) bool {
 	return true
 }
 
-func NewElement(value interface{}, parent *Element) Element {
+func (e Element) GetFullPath() string {
+	keyStr := fmt.Sprintf("%#v", e.Key)
+
+	if e.Parent == nil || (e.Parent.Parent == nil && e.Parent.Key == nil) {
+		return keyStr
+	} else {
+		return fmt.Sprintf("%s.%s", e.Parent.GetFullPath(), keyStr)
+	}
+}
+
+func NewElement(value interface{}, parent *Element, key interface{}) Element {
 	return Element{
 		Value:  value,
 		Parent: parent,
+		Key:    key,
 	}
 }
 
 func NewElementRoot(value interface{}) Element {
-	return NewElement(value, nil)
+	return NewElement(value, nil, nil)
 }
 
 func compareKey(key interface{}, specifier string) bool {
@@ -114,19 +126,19 @@ func (e Element) Query(parts []parser.QueryPart) []Element {
 		switch t := e.Value.(type) {
 		case map[string]interface{}:
 			if child, exists := t[spec]; exists {
-				selected = []Element{NewElement(child, &e)}
+				selected = []Element{NewElement(child, &e, spec)}
 			}
 
 		case map[interface{}]interface{}:
 			for k, v := range t {
 				if compareKey(k, spec) {
-					selected = append(selected, NewElement(v, &e))
+					selected = append(selected, NewElement(v, &e, k))
 				}
 			}
 
 		case []interface{}:
 			if index, err := strconv.Atoi(spec); err == nil && (index >= 0 && index < len(t)) {
-				selected = []Element{NewElement(t[index], &e)}
+				selected = []Element{NewElement(t[index], &e, strconv.Itoa(index))}
 			}
 		}
 	}
