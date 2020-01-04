@@ -75,7 +75,13 @@ func (e Element) MatchesFilters(valueFilters []filters.Filter) bool {
 func (e Element) GetFullPath() string {
 	keyStr := fmt.Sprintf("%#v", e.Key)
 
-	if e.Parent == nil || (e.Parent.Parent == nil && e.Parent.Key == nil) {
+	if e.Parent == nil {
+		if e.Key == nil {
+			return ""
+		} else {
+			return keyStr
+		}
+	} else if e.Parent.Parent == nil && e.Parent.Key == nil {
 		return keyStr
 	} else {
 		return fmt.Sprintf("%s.%s", e.Parent.GetFullPath(), keyStr)
@@ -150,7 +156,7 @@ func (e Element) Query(parts []parser.QueryPart) map[string]Element {
 
 		case []interface{}:
 			if index, err := strconv.Atoi(spec); err == nil && (index >= 0 && index < len(t)) {
-				selected = NewElement(t[index], &e, strconv.Itoa(index)).ToMap()
+				selected = NewElement(t[index], &e, index).ToMap()
 			}
 		}
 	}
