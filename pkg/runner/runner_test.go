@@ -112,6 +112,12 @@ var testTabJSONSingleChildRoot = testTab{
 	{`1`, `[123]`, []interface{}{}},
 	{`1`, `["abc"]`, []interface{}{}},
 
+	{`0.`, `[123]`, []interface{}{[]interface{}{123.0}}},
+	{`0.`, `["abc"]`, []interface{}{[]interface{}{"abc"}}},
+
+	{`0..`, `[123]`, []interface{}{}},
+	{`0..`, `["abc"]`, []interface{}{}},
+
 	// Single-item map.
 	{``, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}}},
 	{``, `{"child": 123.45}`, []interface{}{map[string]interface{}{"child": 123.45}}},
@@ -124,11 +130,29 @@ var testTabJSONSingleChildRoot = testTab{
 	{`*`, `{"child": 123}`, []interface{}{123.0}},
 	{`*`, `{"child": "value"}`, []interface{}{"value"}},
 
+	{`*.`, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}}},
+	{`*.`, `{"child": "value"}`, []interface{}{map[string]interface{}{"child": "value"}}},
+
+	{`*..`, `{"child": 123}`, []interface{}{}},
+	{`*..`, `{"child": "value"}`, []interface{}{}},
+
 	{`**`, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}, 123.0}},
 	{`**`, `{"child": "value"}`, []interface{}{map[string]interface{}{"child": "value"}, "value"}},
 
+	{`**.`, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}}},
+	{`**.`, `{"child": "value"}`, []interface{}{map[string]interface{}{"child": "value"}}},
+
+	{`**..`, `{"child": 123}`, []interface{}{}},
+	{`**..`, `{"child": "value"}`, []interface{}{}},
+
 	{`child`, `{"child": 123}`, []interface{}{123.0}},
 	{`child`, `{"child": "value"}`, []interface{}{"value"}},
+
+	{`child.`, `{"child": 123}`, []interface{}{map[string]interface{}{"child": 123.0}}},
+	{`child.`, `{"child": "value"}`, []interface{}{map[string]interface{}{"child": "value"}}},
+
+	{`child..`, `{"child": 123}`, []interface{}{}},
+	{`child..`, `{"child": "value"}`, []interface{}{}},
 
 	{`another`, `{"child": 123}`, []interface{}{}},
 	{`another`, `{"child": "value"}`, []interface{}{}},
